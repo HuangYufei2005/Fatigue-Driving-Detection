@@ -1,0 +1,1860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fatigue Driving Detection System</title>
+    <style>
+        /* ==================== CSS Reset & Base Styles ==================== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-900: #1e3a5f;
+            --primary-700: #2563eb;
+            --primary-500: #3b82f6;
+            --primary-300: #60a5fa;
+            --primary-100: #dbeafe;
+            --primary-50: #eff6ff;
+            
+            --status-idle: #6b7280;
+            --status-active: #2563eb;
+            --status-warning: #f59e0b;
+            --status-danger: #dc2626;
+            --status-success: #059669;
+            
+            --neutral-white: #ffffff;
+            --neutral-100: #f3f4f6;
+            --neutral-200: #e5e7eb;
+            --neutral-500: #6b7280;
+            --neutral-700: #374151;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            background-color: var(--primary-50);
+        }
+
+        /* ==================== Header / Status Bar ==================== */
+        .status-bar {
+            width: 100%;
+            height: 56px;
+            background: linear-gradient(135deg, var(--primary-700) 0%, var(--primary-500) 100%);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 32px;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+        }
+
+        .project-name {
+            color: #fff;
+            font-size: 18px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        .detection-status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status-label {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 13px;
+        }
+
+        .user-center-btn {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .user-center-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .current-user {
+            color: #bfdbfe;
+            font-weight: 600;
+            margin-right: 12px;
+        }
+
+        .status-value {
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Status color variants */
+        .status-value.idle {
+            background-color: rgba(107, 114, 128, 0.2);
+            color: var(--status-idle);
+            border: 1px solid rgba(107, 114, 128, 0.3);
+        }
+
+        .status-value.active {
+            background-color: rgba(37, 99, 235, 0.2);
+            color: var(--primary-700);
+            border: 1px solid rgba(37, 99, 235, 0.3);
+        }
+
+        .status-value.warning {
+            background-color: rgba(245, 158, 11, 0.2);
+            color: var(--status-warning);
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* ==================== Main Container ==================== */
+        .main-container {
+            display: flex;
+            height: calc(100vh - 56px);
+            padding: 20px;
+            gap: 20px;
+        }
+
+        /* ==================== Camera Section (60%) ==================== */
+        .camera-section {
+            flex: 0 0 60%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .video-container {
+            width: 100%;
+            height: 100%;
+            border-radius: 16px;
+            overflow: hidden;
+            background-color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.2);
+            position: relative;
+        }
+
+        #videoElement {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+
+        .camera-placeholder {
+            color: rgba(0, 0, 0, 0.5);
+            font-size: 16px;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .camera-placeholder .icon {
+            font-size: 56px;
+            margin-bottom: 20px;
+            display: block;
+            opacity: 0.6;
+        }
+
+        .camera-placeholder p {
+            color: rgba(0, 0, 0, 0.6);
+            font-size: 14px;
+        }
+
+        /* ==================== Canvas for Detection Boxes ==================== */
+        #detectionCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        /* Detection Status Text */
+        #detectionStatusText {
+            position: absolute;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            display: none;
+            z-index: 15;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        #detectionStatusText.normal {
+            background-color: rgba(5, 150, 105, 0.9);
+            color: #fff;
+        }
+
+        #detectionStatusText.warning {
+            background-color: rgba(220, 38, 38, 0.9);
+            color: #fff;
+            animation: statusPulse 0.5s infinite;
+        }
+
+        @keyframes statusPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* No Face Detected Message */
+        #noFaceMessage {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 12px 24px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: #fff;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+            z-index: 10;
+        }
+
+        /* Real-time Status Overlay */
+        .status-overlay {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            display: none;
+            z-index: 10;
+            backdrop-filter: blur(8px);
+        }
+
+        .status-overlay.normal {
+            background-color: rgba(37, 99, 235, 0.85);
+            color: #fff;
+            box-shadow: 0 2px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .status-overlay.fatigue {
+            background-color: rgba(220, 38, 38, 0.85);
+            color: #fff;
+            box-shadow: 0 2px 12px rgba(220, 38, 38, 0.3);
+            animation: pulse-overlay 1s infinite;
+        }
+
+        .status-overlay.exception {
+            background-color: rgba(245, 158, 11, 0.85);
+            color: #fff;
+            box-shadow: 0 2px 12px rgba(245, 158, 11, 0.3);
+        }
+
+        @keyframes pulse-overlay {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.85; transform: scale(1.02); }
+        }
+
+        /* ==================== Operation Section (40%) ==================== */
+        .operation-section {
+            flex: 0 0 40%;
+            background-color: var(--neutral-white);
+            padding: 24px;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.1);
+        }
+
+        /* Warning Popup */
+        .warning-popup {
+            position: absolute;
+            top: -14px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            color: #fff;
+            padding: 12px 28px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            display: none;
+            z-index: 100;
+            box-shadow: 0 6px 16px rgba(220, 38, 38, 0.3);
+            animation: slideDown 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            white-space: nowrap;
+        }
+
+        .warning-popup::after {
+            content: '';
+            position: absolute;
+            bottom: -7px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 7px 7px 0;
+            border-style: solid;
+            border-color: #b91c1c transparent transparent;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-15px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+
+        /* Button Group */
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            letter-spacing: 0.3px;
+        }
+
+        .btn-full {
+            grid-column: 1 / -1;
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: #fff;
+        }
+
+        .btn-start:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35);
+        }
+
+        .btn-stop {
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+            color: #fff;
+        }
+
+        .btn-stop:hover:not(:disabled) {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.35);
+        }
+
+        .btn-records {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: #fff;
+        }
+
+        .btn-records:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
+        }
+
+        .btn-export {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: #fff;
+        }
+
+        .btn-export:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(139, 92, 246, 0.35);
+        }
+
+        .btn-reset {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: #fff;
+        }
+
+        .btn-reset:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.35);
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        /* Log Section */
+        .log-section {
+            flex: 1;
+            border: 1px solid #e0e7ff;
+            border-radius: 12px;
+            background-color: #f5f3ff;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .log-header {
+            padding: 12px 16px;
+            background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+            border-bottom: 1px solid #c7d2fe;
+            font-size: 13px;
+            font-weight: 600;
+            color: #4338ca;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .log-header::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #7c3aed;
+        }
+
+        .log-content {
+            flex: 1;
+            padding: 12px 16px;
+            overflow-y: auto;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+            font-size: 12px;
+            line-height: 1.7;
+            color: #6b7280;
+        }
+
+        .log-content::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .log-content::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .log-content::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 3px;
+        }
+
+        .log-item {
+            margin-bottom: 6px;
+            padding: 4px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .log-item:last-child {
+            border-bottom: none;
+        }
+
+        .log-item .time {
+            color: #9ca3af;
+            margin-right: 10px;
+            font-size: 11px;
+        }
+
+        .log-item.info { color: #3b82f6; }
+        .log-item.success { color: #10b981; }
+        .log-item.warning { color: #f59e0b; }
+        .log-item.error { color: #ef4444; }
+
+        /* ==================== Responsive Design ==================== */
+        
+        /* 1920x1080 (Full HD) */
+        @media screen and (min-width: 1600px) {
+            .main-container {
+                padding: 24px;
+                gap: 24px;
+            }
+            
+            .project-name {
+                font-size: 20px;
+            }
+            
+            .btn {
+                padding: 14px 20px;
+                font-size: 14px;
+            }
+            
+            .log-content {
+                font-size: 13px;
+            }
+        }
+
+        /* 1366x768 */
+        @media screen and (max-width: 1366px) {
+            .main-container {
+                padding: 16px;
+                gap: 16px;
+            }
+
+            .project-name {
+                font-size: 16px;
+            }
+
+            .status-value {
+                padding: 5px 12px;
+                font-size: 12px;
+            }
+
+            .btn {
+                padding: 11px 14px;
+                font-size: 12px;
+            }
+
+            .operation-section {
+                padding: 20px;
+            }
+
+            .log-content {
+                font-size: 11px;
+            }
+        }
+
+        /* 1280x720 */
+        @media screen and (max-width: 1280px) {
+            .camera-section {
+                flex: 0 0 58%;
+            }
+
+            .operation-section {
+                flex: 0 0 42%;
+            }
+
+            .button-group {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-full {
+                grid-column: 1;
+            }
+        }
+
+        /* 1024x768 and below */
+        @media screen and (max-width: 1024px) {
+            .status-bar {
+                padding: 0 20px;
+            }
+
+            .camera-section {
+                flex: 0 0 55%;
+            }
+
+            .operation-section {
+                flex: 0 0 45%;
+            }
+
+            .project-name {
+                font-size: 14px;
+            }
+
+            .status-label {
+                display: none;
+            }
+        }
+
+        /* Small screens */
+        @media screen and (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+                padding: 12px;
+                gap: 12px;
+            }
+
+            .camera-section,
+            .operation-section {
+                flex: 0 0 auto;
+            }
+
+            .camera-section {
+                height: 40vh;
+            }
+
+            .operation-section {
+                height: auto;
+                min-height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="status-bar">
+        <div class="project-name">Fatigue Driving Detection System</div>
+        <div class="detection-status">
+            <span id="currentUserDisplay" class="current-user" style="display: none;"></span>
+            <a id="userCenterLink" href="login.html" class="user-center-btn" style="display: none;">
+                <span>&#128100;</span> User Center
+            </a>
+            <span class="status-label">Status:</span>
+            <span id="statusValue" class="status-value idle">Idle</span>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-container">
+        <!-- Camera Section -->
+        <section class="camera-section">
+            <div class="video-container">
+                <video id="videoElement" autoplay playsinline></video>
+                <canvas id="detectionCanvas"></canvas>
+                <div id="cameraPlaceholder" class="camera-placeholder">
+                    <span class="icon">&#128249;</span>
+                    <p>Click "Start Detection" to enable camera</p>
+                </div>
+                <!-- Detection Status Text -->
+                <div id="detectionStatusText" class="detection-status-text normal">Normal Detection</div>
+                <!-- No Face Message -->
+                <div id="noFaceMessage">No face detected</div>
+                <!-- Real-time Status Overlay -->
+                <div id="statusOverlay" class="status-overlay normal">Normal</div>
+            </div>
+        </section>
+
+        <!-- Operation Section -->
+        <section class="operation-section">
+            <!-- Warning Popup -->
+            <div id="warningPopup" class="warning-popup">
+                &#9888; Fatigue Warning: <span id="warningType">Eye Closed</span>
+            </div>
+
+            <!-- Button Group -->
+            <div class="button-group">
+                <button id="btnStart" class="btn btn-start">
+                    <span>&#9654;</span> Start
+                </button>
+                <button id="btnStop" class="btn btn-stop" disabled>
+                    <span>&#9632;</span> Stop
+                </button>
+                <button id="btnRecords" class="btn btn-records">
+                    <span>&#128203;</span> Records
+                </button>
+                <button id="btnExport" class="btn btn-export">
+                    <span>&#128229;</span> Export
+                </button>
+                <button id="btnReset" class="btn btn-reset btn-full">
+                    <span>&#128260;</span> Reset Records
+                </button>
+            </div>
+
+            <!-- Log Section -->
+            <div class="log-section">
+                <div class="log-header">Activity Log</div>
+                <div id="logContent" class="log-content"></div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        /**
+         * ========================================
+         * Fatigue Driving Detection System
+         * Frontend Interactive Logic
+         * Developer: Member 1
+         * Date: 2026-03-01
+         * ========================================
+         */
+
+        // ==================== Global Configuration ====================
+        /**
+         * Detection Configuration Parameters
+         */
+        const DETECTION_CONFIG = {
+            // Frame Rate Control
+            frameRate: 30,                   
+            processInterval: 100,            
+            
+            // Box Colors
+            colors: {
+                face: { normal: '#ff8c00', warning: '#dc2626' },      
+                eye: { normal: '#22c55e', warning: '#dc2626' },      
+                head: { normal: '#eab308', warning: '#dc2626' }       
+            },
+            
+            // Border Width
+            borderWidth: {
+                face: 3,
+                eye: 2,
+                head: 2
+            },
+            
+            // Detection Thresholds
+            thresholds: {
+                eyeOpenRatio: 0.25,           
+                eyeClosedDuration: 300,       
+                headTiltAngle: 15,           
+                nodInterval: 800
+            },
+            
+            // Flash Interval
+            flashInterval: 500,
+            
+            // Text Style
+            textStyle: {
+                fontSize: 14,
+                fontFamily: 'Arial, sans-serif',
+                color: '#ffffff',
+                strokeColor: '#000000',
+                strokeWidth: 2,
+                backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                padding: '4px 8px',
+                borderRadius: 4
+            }
+        };
+
+        // ==================== Global Variables ====================
+        let mediaStream = null;
+        let isDetecting = false;
+        let detectionTimer = null;
+        let canvasContext = null;
+        let animationFrameId = null;
+        
+        // Canvas size
+        let canvasWidth = 0;
+        let canvasHeight = 0;
+        
+        // Flashing state
+        let flashState = false;
+        let flashTimer = null;
+        
+        // Detection status data
+        let currentDetectionData = {
+            faceDetected: false,
+            faceBox: null,            // {x, y, width, height}
+            leftEyeBox: null,         // {x, y, width, height}
+            rightEyeBox: null,        // {x, y, width, height}
+            headBox: null,            // {x, y, width, height}
+            eyeOpenRatio: 1.0,         // Eyelid opening and closing degree
+            eyeClosedDuration: 0,     // Duration of eye closure (ms)
+            headTiltAngle: 0,         // Head tilt angle (degrees)
+            nodInterval: 0,          // Head nodding interval (ms)
+            status: 'normal'          // normal/warning
+        };
+        
+        // Time statistics
+        let eyeClosedStartTime = null;
+        let lastNodTime = null;
+        
+        const PROCESS_INTERVAL = 100;
+        const STORAGE_KEY = 'currentUser';
+
+        // ==================== DOM Elements ====================
+        const videoElement = document.getElementById('videoElement');
+        const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+        const statusValue = document.getElementById('statusValue');
+        const statusOverlay = document.getElementById('statusOverlay');
+        const warningPopup = document.getElementById('warningPopup');
+        const warningType = document.getElementById('warningType');
+        const logContent = document.getElementById('logContent');
+        const btnStart = document.getElementById('btnStart');
+        const btnStop = document.getElementById('btnStop');
+        const btnRecords = document.getElementById('btnRecords');
+        const btnExport = document.getElementById('btnExport');
+        const btnReset = document.getElementById('btnReset');
+        const currentUserDisplay = document.getElementById('currentUserDisplay');
+        const userCenterLink = document.getElementById('userCenterLink');
+        
+        // Canvas - Detection Canvas
+        const detectionCanvas = document.getElementById('detectionCanvas');
+        const detectionStatusText = document.getElementById('detectionStatusText');
+        const noFaceMessage = document.getElementById('noFaceMessage');
+
+        // ==================== Initialization ====================
+        /**
+         * Initialize page function
+         * Binds event listeners and initializes page state
+         * @returns {void}
+         */
+        function initPage() {
+            // Check login status first
+            checkLoginStatus();
+            
+            // Initialize Canvas
+            initCanvas();
+            
+            // Start flash timer
+            startFlashTimer();
+            
+            // Release resources on page unload
+            window.addEventListener('beforeunload', releaseResources);
+            
+            btnStart.addEventListener('click', handleStartDetection);
+            btnStop.addEventListener('click', handleStopDetection);
+            btnRecords.addEventListener('click', handleViewRecords);
+            btnExport.addEventListener('click', handleExportRecords);
+            btnReset.addEventListener('click', handleResetRecords);
+
+            addLog('System ready. Click "Start Detection" to begin.', 'info');
+        }
+
+        // ==================== Canvas Initialization ====================
+        function initCanvas() {
+            const videoContainer = document.querySelector('.video-container');
+            canvasWidth = videoContainer.clientWidth;
+            canvasHeight = videoContainer.clientHeight;
+            
+            detectionCanvas.width = canvasWidth;
+            detectionCanvas.height = canvasHeight;
+            
+            canvasContext = detectionCanvas.getContext('2d');
+            
+            console.log('[Canvas] Initialized:', canvasWidth, 'x', canvasHeight);
+        }
+
+        // ==================== Flash Timer ====================
+        /**
+         * Start flash timer
+         * Used to control the flashing effect of the warning box
+         * @returns {void}
+         */
+        function startFlashTimer() {
+            flashTimer = setInterval(() => {
+                flashState = !flashState;
+            }, DETECTION_CONFIG.flashInterval);
+        }
+
+        // ==================== Resource Management ====================
+        /**
+         * Release all resources
+         * Called when the page is closed to ensure the release of camera resources
+         * @returns {void}
+         */
+        function releaseResources() {
+            stopFrameProcessing();
+            stopCamera();
+            if (flashTimer) {
+                clearInterval(flashTimer);
+                flashTimer = null;
+            }
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+        }
+
+        /**
+         * ========================================
+         * Login Status Check Function
+         * ========================================
+         * Function: Verify login status and control the permissions of buttons on the home page
+         * 
+         * Rules：
+         * - Not logged in: Disable core buttons and redirect to the login page.
+         * - Logged in: Display account information and show the personal center entry.
+         * 
+         * @returns {void}
+         */
+        function checkLoginStatus() {
+            const currentUser = localStorage.getItem(STORAGE_KEY);
+            
+            if (!currentUser) {
+                // Not logged in - disable core buttons
+                btnStart.disabled = true;
+                btnRecords.disabled = true;
+                btnExport.disabled = true;
+                btnReset.disabled = true;
+                
+                // Hide user center link
+                userCenterLink.style.display = 'none';
+                currentUserDisplay.style.display = 'none';
+                
+                console.log('[Login] Not logged in - buttons disabled');
+            } else {
+                // Logged in - show user info
+                currentUserDisplay.textContent = currentUser;
+                currentUserDisplay.style.display = 'inline';
+                
+                // Update user center link to point to user-center.html
+                userCenterLink.href = 'user-center.html';
+                userCenterLink.style.display = 'flex';
+                
+                // Enable core buttons
+                btnStart.disabled = false;
+                btnRecords.disabled = false;
+                btnExport.disabled = false;
+                btnReset.disabled = false;
+                
+                console.log('[Login] Logged in as:', currentUser);
+            }
+        }
+
+        // ==================== Camera Functions ====================
+        /**
+         * Request camera permission and start camera
+         * @returns {Promise<boolean>}
+         */
+        async function requestCamera() {
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'user'
+                    },
+                    audio: false
+                });
+
+                videoElement.srcObject = mediaStream;
+                videoElement.style.display = 'block';
+                cameraPlaceholder.style.display = 'none';
+                
+                videoElement.onloadedmetadata = function() {
+                    initCanvas();
+                    startCanvasRenderLoop();
+                };
+
+                addLog('Camera started successfully.', 'success');
+                return true;
+
+            } catch (error) {
+                console.error('Camera request failed:', error);
+                addLog('Camera permission denied: ' + error.message, 'error');
+                handleCameraError(error);
+                return false;
+            }
+        }
+
+        // ==================== Canvas Render Loop ====================
+        /**
+         * Start Canvas render loop
+         * Continuously draw the detection frame body
+         * @returns {void}
+         */
+        function startCanvasRenderLoop() {
+            function render() {
+                if (isDetecting) {
+                    canvasContext.clearRect(0, 0, canvasWidth, canvasHeight);
+                    
+                    // Draw the detection box
+                    drawDetectionBoxes();
+                    
+                    // Update status message
+                    updateDetectionStatusText();
+                }
+                animationFrameId = requestAnimationFrame(render);
+            }
+            render();
+        }
+
+        // ==================== Box Drawing Functions ====================
+        /**
+         * Draw all detection boxes
+         * Including the areas of the face, eyes, head and mouth
+         * @returns {void}
+         */
+        function drawDetectionBoxes() {
+            // 
+            if (!currentDetectionData.faceDetected) {
+                noFaceMessage.style.display = 'block';
+                return;
+            }
+            
+            noFaceMessage.style.display = 'none';
+            
+            const data = currentDetectionData;
+             
+            const scaleX = canvasWidth / (videoElement.videoWidth || 1280);
+            const scaleY = canvasHeight / (videoElement.videoHeight || 720);
+            
+            if (data.faceBox) {
+                drawBox(data.faceBox, DETECTION_CONFIG.colors.face, DETECTION_CONFIG.borderWidth.face, scaleX, scaleY);
+            }
+            
+            if (data.leftEyeBox) {
+                const eyeColor = getEyeWarningColor(data);
+                drawBox(data.leftEyeBox, eyeColor, DETECTION_CONFIG.borderWidth.eye, scaleX, scaleY);
+            }
+            if (data.rightEyeBox) {
+                const eyeColor = getEyeWarningColor(data);
+                drawBox(data.rightEyeBox, eyeColor, DETECTION_CONFIG.borderWidth.eye, scaleX, scaleY);
+            }
+            
+            if (data.headBox) {
+                const headColor = getHeadWarningColor(data);
+                drawBox(data.headBox, headColor, DETECTION_CONFIG.borderWidth.head, scaleX, scaleY);
+                
+                // Draw head warning text if needed
+                if (isHeadNodWarning(data)) {
+                    drawWarningText('Head Nod Warning', data.headBox, scaleX, scaleY);
+                }
+            }
+        }
+
+        /**
+         *  - Draw single rectangle box
+         * @param {Object} box - {x, y, width, height}
+         * @param {Object} colors - {normal, warning}
+         * @param {number} borderWidth
+         * @param {number} scaleX
+         * @param {number} scaleY
+         * @returns {void}
+         */
+        function drawBox(box, colors, borderWidth, scaleX, scaleY) {
+            if (!box) return;
+            
+            const x = box.x * scaleX;
+            const y = box.y * scaleY;
+            const width = box.width * scaleX;
+            const height = box.height * scaleY;
+            
+            //  Canvas 
+            const clampedX = Math.max(0, Math.min(x, canvasWidth - width));
+            const clampedY = Math.max(0, Math.min(y, canvasHeight - height));
+            const clampedWidth = Math.min(width, canvasWidth - clampedX);
+            const clampedHeight = Math.min(height, canvasHeight - clampedY);
+            
+            // 
+            const isWarning = (colors.warning && flashState);
+            const color = isWarning ? colors.warning : colors.normal;
+            
+            canvasContext.strokeStyle = color;
+            canvasContext.lineWidth = borderWidth;
+            canvasContext.strokeRect(clampedX, clampedY, clampedWidth, clampedHeight);
+        }
+
+        /**
+         *  - Draw warning text
+         *  
+         * @param {string} text
+         * @param {Object} box
+         * @param {number} scaleX
+         * @param {number} scaleY
+         * @returns {void}
+         */
+        function drawWarningText(text, box, scaleX, scaleY) {
+            if (!box) return;
+            
+            const x = box.x * scaleX;
+            const y = box.y * scaleY;
+            const width = box.width * scaleX;
+            
+            const textStyle = DETECTION_CONFIG.textStyle;
+            
+            canvasContext.font = `${textStyle.fontSize}px ${textStyle.fontFamily}`;
+            const textWidth = canvasContext.measureText(text).width;
+            const textX = x + (width - textWidth) / 2;
+            const textY = y - 10;
+            
+            // text background
+            canvasContext.fillStyle = textStyle.backgroundColor;
+            canvasContext.fillRect(textX - 4, textY - textStyle.fontSize, textWidth + 8, textStyle.fontSize + 4);
+            
+            // text stroke
+            canvasContext.strokeStyle = textStyle.strokeColor;
+            canvasContext.lineWidth = textStyle.strokeWidth;
+            canvasContext.strokeText(text, textX, textY);
+            
+            // text fill
+            canvasContext.fillStyle = textStyle.color;
+            canvasContext.fillText(text, textX, textY);
+        }
+
+        // ==================== Status Determination Functions ====================
+        /**
+         * Get eye warning color
+         * @param {Object} data
+         * @returns {string}
+         */
+        function getEyeWarningColor(data) {
+            const config = DETECTION_CONFIG.thresholds;
+            // If eyelid openness below threshold and duration exceeds threshold, flash red
+            if (data.eyeOpenRatio < config.eyeOpenRatio && 
+                data.eyeClosedDuration >= config.eyeClosedDuration) {
+                return DETECTION_CONFIG.colors.eye.warning;
+            }
+            return DETECTION_CONFIG.colors.eye.normal;
+        }
+
+        /**
+         * Get head warning color
+         * @param {Object} data
+         * @returns {string}
+         */
+        function getHeadWarningColor(data) {
+            const config = DETECTION_CONFIG.thresholds;
+            // If head tilt exceeds threshold and nod interval is less than threshold, flash red
+            if (Math.abs(data.headTiltAngle) >= config.headTiltAngle && 
+                data.nodInterval < config.nodInterval) {
+                return DETECTION_CONFIG.colors.head.warning;
+            }
+            return DETECTION_CONFIG.colors.head.normal;
+        }
+
+        /**
+         * Check if head nod warning
+         * @param {Object} data
+         * @returns {boolean}
+         */
+        function isHeadNodWarning(data) {
+            const config = DETECTION_CONFIG.thresholds;
+            return Math.abs(data.headTiltAngle) >= config.headTiltAngle && 
+                   data.nodInterval < config.nodInterval;
+        }
+
+        // ==================== Status Text Update ====================
+        /**
+         * Update detection status text
+         * @returns {void}
+         */
+        function updateDetectionStatusText() {
+            if (!currentDetectionData.faceDetected) {
+                detectionStatusText.style.display = 'none';
+                return;
+            }
+            
+            detectionStatusText.style.display = 'block';
+            
+            const data = currentDetectionData;
+            const config = DETECTION_CONFIG.thresholds;
+            let statusText = '';
+            let isWarning = false;
+            
+            // Determine various warning states
+            if (data.eyeOpenRatio < config.eyeOpenRatio && data.eyeClosedDuration >= config.eyeClosedDuration) {
+                statusText = 'Eye Closure Fatigue Warning';
+                isWarning = true;
+            } else if (isHeadNodWarning(data)) {
+                statusText = 'Frequent Nod Warning';
+                isWarning = true;
+            } else {
+                statusText = 'Normal Detection';
+                isWarning = false;
+            }
+            
+            detectionStatusText.textContent = statusText;
+            detectionStatusText.className = isWarning ? 'warning' : 'normal';
+        }
+
+        // ==================== Error Handling ====================
+        /**
+         * Handle camera error
+         * @param {Error} error
+         * @returns {void}
+         */
+        function handleCameraError(error) {
+            let errorMessage = 'Camera error';
+            
+            if (error.name === 'NotAllowedError') {
+                errorMessage = 'Camera permission denied. Please allow camera access.';
+            } else if (error.name === 'NotFoundError') {
+                errorMessage = 'No camera found. Please connect a camera.';
+            } else if (error.name === 'NotReadableError') {
+                errorMessage = 'Camera is already in use by another application.';
+            }
+            
+            addLog(errorMessage, 'error');
+            updateStatus('idle');
+            updateRealTimeStatus('exception');
+            
+            // Display error message
+            cameraPlaceholder.innerHTML = `
+                <span class="icon">&#9888;</span>
+                <p>${errorMessage}</p>
+                <p style="font-size: 12px; margin-top: 10px;">Please refresh and try again</p>
+            `;
+            cameraPlaceholder.style.display = 'block';
+        }
+
+        /**
+         * Stop camera capture
+         * @returns {void}
+         */
+        function stopCamera() {
+            // Stop Canvas rendering
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            
+            // Clear Canvas
+            if (canvasContext) {
+                canvasContext.clearRect(0, 0, canvasWidth, canvasHeight);
+            }
+            
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => {
+                    track.stop();
+                });
+                mediaStream = null;
+            }
+
+            videoElement.srcObject = null;
+            videoElement.style.display = 'none';
+            cameraPlaceholder.style.display = 'block';
+            
+            // Hide status text
+            detectionStatusText.style.display = 'none';
+            noFaceMessage.style.display = 'none';
+        }
+
+        // ==================== Status Management ====================
+        /**
+         * Update detection status (header)
+         * @param {string} status - 'idle' | 'active' | 'warning'
+         * @returns {void}
+         */
+        function updateStatus(status) {
+            statusValue.classList.remove('idle', 'active', 'warning');
+
+            switch (status) {
+                case 'idle':
+                    statusValue.textContent = 'Idle';
+                    statusValue.classList.add('idle');
+                    break;
+                case 'active':
+                    statusValue.textContent = 'Active';
+                    statusValue.classList.add('active');
+                    break;
+                case 'warning':
+                    statusValue.textContent = 'Warning';
+                    statusValue.classList.add('warning');
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        /**
+         * Update real-time status overlay (camera section)
+         * @param {string} type - 'normal' | 'fatigue' | 'exception'
+         * @returns {void}
+         */
+        function updateRealTimeStatus(type) {
+            statusOverlay.classList.remove('normal', 'fatigue', 'exception');
+            
+            switch (type) {
+                case 'normal':
+                    statusOverlay.textContent = 'Normal';
+                    statusOverlay.classList.add('normal');
+                    statusOverlay.style.display = 'block';
+                    break;
+                case 'fatigue':
+                    statusOverlay.textContent = 'Fatigue';
+                    statusOverlay.classList.add('fatigue');
+                    statusOverlay.style.display = 'block';
+                    break;
+                case 'exception':
+                    statusOverlay.textContent = 'Exception';
+                    statusOverlay.classList.add('exception');
+                    statusOverlay.style.display = 'block';
+                    break;
+                default:
+                    statusOverlay.style.display = 'none';
+            }
+        }
+
+        /**
+         * Show warning popup
+         * @param {string} type - 'eye' | 'nod' | 'both'
+         * @returns {void}
+         */
+        function showWarning(type) {
+            let warningText = '';
+            switch (type) {
+                case 'eye':
+                    warningText = 'Eye Closed';
+                    break;
+                case 'nod':
+                    warningText = 'Head Nod';
+                    break;
+                case 'both':
+                    warningText = 'Eye/Head';
+                    break;
+                default:
+                    warningText = 'Fatigue';
+            }
+
+            warningType.textContent = warningText;
+            warningPopup.style.display = 'block';
+
+            setTimeout(() => {
+                hideWarning();
+            }, 3000);
+        }
+
+        /**
+         * Hide warning popup
+         * @returns {void}
+         */
+        function hideWarning() {
+            warningPopup.style.display = 'none';
+        }
+
+        // ==================== Log Management ====================
+        /**
+         * Add log entry
+         * @param {string} message - Log message
+         * @param {string} type - 'info' | 'success' | 'warning' | 'error'
+         * @returns {void}
+         */
+        function addLog(message, type = 'info') {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-US', {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+
+            const logItem = document.createElement('div');
+            logItem.className = `log-item ${type}`;
+            logItem.innerHTML = `<span class="time">[${timeStr}]</span>${message}`;
+
+            logContent.appendChild(logItem);
+            logContent.scrollTop = logContent.scrollHeight;
+        }
+
+        // ==================== Button Event Handlers ====================
+        /**
+         * Handle start detection button click
+         * @returns {Promise<void>}
+         */
+        async function handleStartDetection() {
+            if (isDetecting) {
+                addLog('Detection already running', 'warning');
+                return;
+            }
+
+            addLog('Starting detection...', 'info');
+
+            const startResult = await callApiStartDetection();
+            
+            if (startResult) {
+                const cameraSuccess = await requestCamera();
+                
+                if (cameraSuccess) {
+                    isDetecting = true;
+                    
+                    btnStart.disabled = true;
+                    btnStop.disabled = false;
+                    
+                    updateStatus('active');
+                    updateRealTimeStatus('normal');
+                    
+                    addLog('Detection started - Status: Normal', 'success');
+
+                    startFrameProcessing();
+                } else {
+                    addLog('Camera failed to start', 'error');
+                    updateRealTimeStatus('exception');
+                }
+            }
+        }
+
+        /**
+         * Handle stop detection button click
+         * @returns {void}
+         */
+        function handleStopDetection() {
+            if (!isDetecting) {
+                addLog('Detection not running', 'warning');
+                return;
+            }
+
+            addLog('Stopping detection...', 'info');
+
+            stopFrameProcessing();
+            stopCamera();
+
+            isDetecting = false;
+            updateStatus('idle');
+            updateRealTimeStatus('exception');
+            
+            btnStart.disabled = false;
+            btnStop.disabled = true;
+
+            addLog('Detection stopped', 'success');
+        }
+
+        /**
+         * Handle view records button click
+         * @returns {Promise<void>}
+         */
+        async function handleViewRecords() {
+            addLog('Fetching records...', 'info');
+            await callApiGetRecords();
+        }
+
+        /**
+         * Handle export records button click
+         * @returns {void}
+         */
+        function handleExportRecords() {
+            addLog('Exporting records...', 'info');
+
+            setTimeout(() => {
+                addLog('Export feature pending backend integration', 'warning');
+            }, 1000);
+        }
+
+        /**
+         * Handle reset records button click
+         * @returns {void}
+         */
+        function handleResetRecords() {
+            addLog('Resetting records...', 'info');
+            
+            // Call reset records API
+            callApiResetRecords();
+        }
+
+        // ==================== Frame Processing ====================
+        /**
+         * Start frame processing timer
+         * @returns {void}
+         */
+        function startFrameProcessing() {
+            detectionTimer = setInterval(async () => {
+                if (isDetecting && videoElement.readyState === videoElement.HAVE_ENOUGH_DATA) {
+                    const base64Image = await captureFrameToBase64();
+                    const result = await callApiProcessFrame(base64Image);
+                    
+                    if (result) {
+                        // Update status based on detection result
+                        // Using new status field (normal/warning/exception)
+                        if (result.status === 'warning' || result.status === 'tired') {
+                            updateStatus('warning');
+                            updateRealTimeStatus('fatigue');
+                            
+                            // Show specific warning type
+                            const config = DETECTION_CONFIG.thresholds;
+                            if (result.eyeOpenRatio && result.eyeOpenRatio < config.eyeOpenRatio) {
+                                showWarning('eye');
+                            } else if (result.headTiltAngle && Math.abs(result.headTiltAngle) >= config.headTiltAngle) {
+                                showWarning('nod');
+                            }
+                            
+                            addLog(`Fatigue detected: ${getFatigueTypeLabel(result)}`, 'warning');
+                        } else if (result.status === 'exception' || !result.faceDetected) {
+                            // Face not detected
+                            updateStatus('warning');
+                            updateRealTimeStatus('exception');
+                        } else {
+                            // Normal state
+                            updateStatus('active');
+                            updateRealTimeStatus('normal');
+                        }
+                    }
+                }
+            }, PROCESS_INTERVAL);
+        }
+
+        /**
+         * Get fatigue type label
+         * @param {Object} result
+         * @returns {string}
+         */
+        function getFatigueTypeLabel(result) {
+            const config = DETECTION_CONFIG.thresholds;
+            
+            if (result.eyeOpenRatio < config.eyeOpenRatio) {
+                return 'Eye Closed';
+            }
+            if (Math.abs(result.headTiltAngle) >= config.headTiltAngle) {
+                return 'Head Nod';
+            }
+            return 'Fatigue';
+        }
+
+        /**
+         * Stop frame processing timer
+         * @returns {void}
+         */
+        function stopFrameProcessing() {
+            if (detectionTimer) {
+                clearInterval(detectionTimer);
+                detectionTimer = null;
+            }
+        }
+
+        /**
+         * Capture video frame and convert to Base64
+         * @returns {Promise<string>}
+         */
+        async function captureFrameToBase64() {
+            const canvas = document.createElement('canvas');
+            canvas.width = videoElement.videoWidth;
+            canvas.height = videoElement.videoHeight;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+            
+            return canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+        }
+
+        // ==================== API Placeholder Functions ====================
+        
+        /**
+         * ========================================
+         * Call Member 5 Data Record Module
+         * ========================================
+         * Purpose: Filter records by account (integration with Member 5 data module)
+         * Params: currentUser - Current logged-in username (from localStorage)
+         * Returns: Array - List of records for the account, same format as original system
+         *
+         * Collaboration notes: Member 5 should adjust storage/read logic
+         * - Storage filename format: "{username}_fatigue_records.txt"
+         * - Reading: only load the TXT file for the current account
+         *
+         * @param {string} currentUser - Current logged in username
+         * @returns {Promise<Array>} - Array of record objects {time, type}
+         */
+        async function getUserRecords(currentUser) {
+            const apiUrl = '/get_user_records';
+            console.log(`[API] Fetching records for user: ${currentUser}`);
+
+            try {
+                // Production code - call member 5's API:
+                // const response = await fetch(`${apiUrl}?user=${currentUser}`, {
+                //     method: 'GET',
+                //     headers: { 'Content-Type': 'application/json' }
+                // });
+                // const result = await response.json();
+
+                // Mock response
+                const mockResult = {
+                    records: [
+                        { time: '2026-03-01 14:30:00', type: 'eye' },
+                        { time: '2026-03-01 14:25:30', type: 'nod' },
+                        { time: '2026-03-01 14:20:15', type: 'eye' }
+                    ]
+                };
+
+                console.log('[API Response] User records:', mockResult);
+                return mockResult.records;
+
+            } catch (error) {
+                console.error('[API Error]', error);
+                return [];
+            }
+        }
+
+        /**
+         * /start_detection API placeholder
+         * Endpoint: POST /start_detection
+         * Params: { "action": "start" }
+         * Response: { "code": 200, "msg": "Detection started", "status": "running" }
+         * @returns {Promise<boolean>}
+         */
+        async function callApiStartDetection() {
+            const apiUrl = '/start_detection';
+            const requestData = { action: 'start' };
+
+            console.log('[API] POST', apiUrl, requestData);
+
+            try {
+                // Production code:
+                // const response = await fetch(apiUrl, {
+                //     method: 'POST',
+                //     headers: { 'Content-Type': 'application/json' },
+                //     body: JSON.stringify(requestData)
+                // });
+                // const result = await response.json();
+
+                const mockResult = {
+                    code: 200,
+                    msg: 'Detection started',
+                    status: 'running'
+                };
+
+                if (mockResult.code === 200) {
+                    console.log('[API Response] Start success:', mockResult);
+                    return true;
+                } else {
+                    console.error('[API Response] Start failed:', mockResult);
+                    return false;
+                }
+
+            } catch (error) {
+                console.error('[API Error]', error);
+                return true;
+            }
+        }
+
+        /**
+         * /process_frame API placeholder
+         * Endpoint: POST /process_frame
+         * Params: { "imageData": "base64_string" }
+         * Response: { "status": "normal/tired/exception", "type": "none/eye/nod", "message": "..." }
+         * @param {string} base64Image
+         * @returns {Promise<object>}
+         */
+        async function callApiProcessFrame(base64Image) {
+            const apiUrl = '/process_frame';
+            const requestData = { imageData: base64Image };
+
+            // console.log('[API] POST', apiUrl, 'Frame size:', base64Image.length);
+
+            try {
+                // ========================================
+                // TODO: Backend API Integration
+                // ========================================
+                // Production code:
+                // const response = await fetch(apiUrl, {
+                //     method: 'POST',
+                //     headers: { 'Content-Type': 'application/json' },
+                //     body: JSON.stringify(requestData)
+                // });
+                // const result = await response.json();
+                //
+                // Expected backend response format:
+                // {
+                //     faceDetected: true/false,
+                //     faceBox: { x: 100, y: 50, width: 200, height: 250 },      // face area
+                //     leftEyeBox: { x: 120, y: 80, width: 40, height: 20 },    // left eye area
+                //     rightEyeBox: { x: 180, y: 80, width: 40, height: 20 },   // right eye area
+                //     headBox: { x: 90, y: 40, width: 220, height: 270 },      // head area
+                //     mouthBox: { x: 150, y: 180, width: 50, height: 30 },     // mouth area
+                //     eyeOpenRatio: 0.3,                                        // eyelid openness (0-1)
+                //     eyeClosedDuration: 500,                                  // eye closed duration (ms)
+                //     headTiltAngle: 10,                                        // head tilt angle (deg)
+                //     nodInterval: 1000,                                        // nod interval (ms)
+                //     isYawning: true/false,                                    // is yawning
+                //     status: 'normal' / 'warning'                              // overall status
+                // }
+                // ========================================
+
+                // Mock detection data (for frontend rendering tests)
+                // Remove this section when using real backend responses
+                const mockResult = generateMockDetectionData();
+                
+                // Update global detection data
+                updateDetectionData(mockResult);
+                
+                return mockResult;
+
+            } catch (error) {
+                console.error('[API Error]', error);
+                
+                // Set face not detected
+                currentDetectionData.faceDetected = false;
+                
+                return { status: 'exception', type: 'none', message: error.message };
+            }
+        }
+
+        // ==================== Mock Detection Data ====================
+        /**
+         * Generate mock detection data
+         * @returns {Object}
+         */
+        function generateMockDetectionData() {
+            if (Math.random() < 0.05) {
+                return {
+                    faceDetected: false,
+                    status: 'exception'
+                };
+            }
+            
+            const centerX = 640;
+            const centerY = 360;
+            
+            const offsetX = (Math.random() - 0.5) * 100;
+            const offsetY = (Math.random() - 0.5) * 80;
+            
+            // Facial area
+            const faceBox = {
+                x: centerX - 150 + offsetX,
+                y: centerY - 180 + offsetY,
+                width: 300,
+                height: 360
+            };
+            
+            // The left eye area (above the inner part of the face)
+            const leftEyeBox = {
+                x: faceBox.x + 50,
+                y: faceBox.y + 80,
+                width: 80,
+                height: 40
+            };
+            
+            // The right eye area 
+            const rightEyeBox = {
+                x: faceBox.x + 170,
+                y: faceBox.y + 80,
+                width: 80,
+                height: 40
+            };
+            
+            // The head area (slightly larger than the face)
+            const headBox = {
+                x: faceBox.x - 20,
+                y: faceBox.y - 30,
+                width: faceBox.width + 40,
+                height: faceBox.height + 60
+            };
+            
+            const rand = Math.random();
+            let eyeOpenRatio, eyeClosedDuration, headTiltAngle, nodInterval, status;
+            
+            if (rand < 0.1) {
+                // Eye fatigue - Close eyes
+                eyeOpenRatio = 0.15 + Math.random() * 0.1;
+                eyeClosedDuration = 300 + Math.random() * 500;
+                status = 'warning';
+            } else if (rand < 0.2) {
+                // Head fatigue - Looking down
+                eyeOpenRatio = 0.25 + Math.random() * 0.1;
+                eyeClosedDuration = 0;
+                headTiltAngle = 15 + Math.random() * 20;
+                nodInterval = 500 + Math.random() * 300;
+                status = 'warning';
+            } else {
+                // Normal
+                eyeOpenRatio = 0.25 + Math.random() * 0.15;
+                eyeClosedDuration = 0;
+                headTiltAngle = (Math.random() - 0.5) * 20;
+                nodInterval = 1000 + Math.random() * 1000;
+                status = 'normal';
+            }
+            
+            return {
+                faceDetected: true,
+                faceBox: faceBox,
+                leftEyeBox: leftEyeBox,
+                rightEyeBox: rightEyeBox,
+                headBox: headBox,
+                eyeOpenRatio: eyeOpenRatio,
+                eyeClosedDuration: eyeClosedDuration,
+                headTiltAngle: headTiltAngle,
+                nodInterval: nodInterval,
+                status: status
+            };
+        }
+
+        // ==================== Detection Data Update ====================
+        /**
+         * Update detection data
+         * @param {Object} data
+         * @returns {void}
+         */
+        function updateDetectionData(data) {
+            currentDetectionData = { ...currentDetectionData, ...data };
+        }
+
+        /**
+         * /get_records API placeholder
+         * Endpoint: GET /get_records
+         * Params: None
+         * Response: { "records": [{"time": "timestamp", "type": "eye/nod"}, ...] }
+         * @returns {Promise<object>}
+         */
+        async function callApiGetRecords() {
+            const apiUrl = '/get_records';
+            console.log('[API] GET', apiUrl);
+
+            try {
+                // Production code:
+                // const response = await fetch(apiUrl, {
+                //     method: 'GET',
+                //     headers: { 'Content-Type': 'application/json' }
+                // });
+                // const result = await response.json();
+
+                const mockResult = {
+                    records: [
+                        { time: '2026-03-01 14:30:00', type: 'eye' },
+                        { time: '2026-03-01 14:25:30', type: 'nod' },
+                        { time: '2026-03-01 14:20:15', type: 'eye' }
+                    ]
+                };
+
+                console.log('[API Response] Records fetched:', mockResult);
+                addLog(`Records retrieved: ${mockResult.records.length} entries`, 'success');
+                
+                return mockResult;
+
+            } catch (error) {
+                console.error('[API Error]', error);
+                addLog('Failed to fetch records: ' + error.message, 'error');
+                return null;
+            }
+        }
+
+        /**
+         * /reset_records API placeholder
+         * Endpoint: POST /reset_records
+         * Params: { "action": "reset" }
+         * Response: { "code": 200, "msg": "Records reset successfully" }
+         * @returns {Promise<object>}
+         */
+        async function callApiResetRecords() {
+            const apiUrl = '/reset_records';
+            const requestData = { action: 'reset' };
+
+            console.log('[API] POST', apiUrl, requestData);
+
+            try {
+                // Production code:
+                // const response = await fetch(apiUrl, {
+                //     method: 'POST',
+                //     headers: { 'Content-Type': 'application/json' },
+                //     body: JSON.stringify(requestData)
+                // });
+                // const result = await response.json();
+
+                // Mock response
+                const mockResult = {
+                    code: 200,
+                    msg: 'Records reset successfully'
+                };
+
+                console.log('[API Response] Reset:', mockResult);
+                addLog('Records have been reset successfully', 'success');
+                
+                return mockResult;
+
+            } catch (error) {
+                console.error('[API Error]', error);
+                addLog('Failed to reset records: ' + error.message, 'error');
+                return null;
+            }
+        }
+
+        // ==================== Page Load ====================
+        document.addEventListener('DOMContentLoaded', initPage);
+    </script>
+</body>
+</html>
