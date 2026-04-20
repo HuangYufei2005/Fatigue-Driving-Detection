@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fatigue Driving Detection System</title>
+    <style>
+        /* ==================== CSS Reset & Base Styles ==================== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* 统一蓝色系配色 - 简洁专业 */
+            --primary-900: #1e3a5f;
+            --primary-700: #2563eb;
+            --primary-500: #3b82f6;
+            --primary-300: #60a5fa;
+            --primary-100: #dbeafe;
+            --primary-50: #eff6ff;
+
+            /* 状态颜色 - 基于主色的变化 */
+            --status-idle: #6b7280;
+            --status-active: #2563eb;
+            --status-warning: #f59e0b;
+            --status-danger: #dc2626;
+            --status-success: #059669;
+
+            /* 中性色 */
+            --neutral-white: #ffffff;
+            --neutral-100: #f3f4f6;
+            --neutral-200: #e5e7eb;
+            --neutral-500: #6b7280;
+            --neutral-700: #374151;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            background-color: var(--primary-50);
+        }
+
+        /* ==================== Header / Status Bar ==================== */
+        .status-bar {
+            width: 100%;
+            height: 56px;
+            background: linear-gradient(135deg, var(--primary-700) 0%, var(--primary-500) 100%);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 32px;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+        }
+
+        .project-name {
+            color: #fff;
+            font-size: 18px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        .detection-status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status-label {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 13px;
+        }
+
+        .user-center-btn {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .user-center-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .current-user {
+            color: #bfdbfe;
+            font-weight: 600;
+            margin-right: 12px;
+        }
+
+        .status-value {
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-value.idle {
+            background-color: rgba(107, 114, 128, 0.2);
+            color: var(--status-idle);
+            border: 1px solid rgba(107, 114, 128, 0.3);
+        }
+
+        .status-value.active {
+            background-color: rgba(37, 99, 235, 0.2);
+            color: var(--primary-700);
+            border: 1px solid rgba(37, 99, 235, 0.3);
+        }
+
+        .status-value.warning {
+            background-color: rgba(245, 158, 11, 0.2);
+            color: var(--status-warning);
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        /* ==================== Main Container ==================== */
+        .main-container {
+            display: flex;
+            height: calc(100vh - 56px);
+            padding: 20px;
+            gap: 20px;
+        }
+
+        /* ==================== Camera Section (60%) ==================== */
+        .camera-section {
+            flex: 0 0 60%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .video-container {
+            width: 100%;
+            height: 100%;
+            border-radius: 16px;
+            overflow: hidden;
+            background-color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.2);
+            position: relative;
+        }
+
+        #videoElement {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+            transform: scaleX(-1);
+        }
+
+        .camera-placeholder {
+            color: rgba(0, 0, 0, 0.5);
+            font-size: 16px;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .camera-placeholder .icon {
+            font-size: 56px;
+            margin-bottom: 20px;
+            display: block;
+            opacity: 0.6;
+        }
+
+        .camera-placeholder p {
+            color: rgba(0, 0, 0, 0.6);
+            font-size: 14px;
+        }
+
+        /* ==================== Canvas for Detection Boxes ==================== */
+        #detectionCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+            transform: scaleX(-1);
+        }
+
+        /* Detection Status Text */
+        #detectionStatusText {
+            position: absolute;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            display: none;
+            z-index: 15;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        #detectionStatusText.normal {
+            background-color: rgba(5, 150, 105, 0.9);
+            color: #fff;
+        }
+
+        #detectionStatusText.warning {
+            background-color: rgba(220, 38, 38, 0.9);
+            color: #fff;
+            animation: statusPulse 0.5s infinite;
+        }
+
+        @keyframes statusPulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        /* No Face Detected Message */
+        #noFaceMessage {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 12px 24px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: #fff;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+            z-index: 10;
+        }
+
+        /* Real-time Status Overlay */
+        .status-overlay {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            display: none;
+            z-index: 10;
+            backdrop-filter: blur(8px);
+        }
+
+        .status-overlay.normal {
+            background-color: rgba(37, 99, 235, 0.85);
+            color: #fff;
+            box-shadow: 0 2px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .status-overlay.fatigue {
+            background-color: rgba(220, 38, 38, 0.85);
+            color: #fff;
+            box-shadow: 0 2px 12px rgba(220, 38, 38, 0.3);
+            animation: pulse-overlay 1s infinite;
+        }
+
+        .status-overlay.exception {
+            background-color: rgba(245, 158, 11, 0.85);
+            color: #fff;
+            box-shadow: 0 2px 12px rgba(245, 158, 11, 0.3);
+        }
+
+        @keyframes pulse-overlay {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.85;
+                transform: scale(1.02);
+            }
+        }
+
+        /* ==================== Operation Section (40%) ==================== */
+        .operation-section {
+            flex: 0 0 40%;
+            background-color: var(--neutral-white);
+            padding: 24px;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.1);
+        }
+
+        /* Warning Popup */
+        .warning-popup {
+            position: absolute;
+            top: -14px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            color: #fff;
+            padding: 12px 28px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            display: none;
+            z-index: 100;
+            box-shadow: 0 6px 16px rgba(220, 38, 38, 0.3);
+            animation: slideDown 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            white-space: nowrap;
+        }
+
+        .warning-popup::after {
+            content: '';
+            position: absolute;
+            bottom: -7px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 7px 7px 0;
+            border-style: solid;
+            border-color: #b91c1c transparent transparent;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+
+        /* Button Group */
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            letter-spacing: 0.3px;
+        }
+
+        .btn-full {
+            grid-column: 1 / -1;
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: #fff;
+        }
+
+        .btn-start:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35);
+        }
+
+        .btn-stop {
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+            color: #fff;
+        }
+
+        .btn-stop:hover:not(:disabled) {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.35);
+        }
+
+        .btn-records {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: #fff;
+        }
+
+        .btn-records:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
+        }
+
+        .btn-export {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: #fff;
+        }
+
+        .btn-export:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(139, 92, 246, 0.35);
+        }
+
+        .btn-reset {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: #fff;
+        }
+
+        .btn-reset:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.35);
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        /* Log Section */
+        .log-section {
+            flex: 1;
+            border: 1px solid #e0e7ff;
+            border-radius: 12px;
+            background-color: #f5f3ff;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .log-header {
+            padding: 12px 16px;
+            background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+            border-bottom: 1px solid #c7d2fe;
+            font-size: 13px;
+            font-weight: 600;
+            color: #4338ca;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .log-header::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #7c3aed;
+        }
+
+        .log-content {
+            flex: 1;
+            padding: 12px 16px;
+            overflow-y: auto;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+            font-size: 12px;
+            line-height: 1.7;
+            color: #6b7280;
+        }
+
+        .log-content::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .log-content::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .log-content::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 3px;
+        }
+
+        .log-item {
+            margin-bottom: 6px;
+            padding: 4px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .log-item:last-child {
+            border-bottom: none;
+        }
+
+        .log-item .time {
+            color: #9ca3af;
+            margin-right: 10px;
+            font-size: 11px;
+        }
+
+        .log-item.info {
+            color: #3b82f6;
+        }
+
+        .log-item.success {
+            color: #10b981;
+        }
+
+        .log-item.warning {
+            color: #f59e0b;
+        }
+
+        .log-item.error {
+            color: #ef4444;
+        }
+
+        /* ==================== Responsive Design ==================== */
+        @media screen and (min-width: 1600px) {
+            .main-container {
+                padding: 24px;
+                gap: 24px;
+            }
+
+            .project-name {
+                font-size: 20px;
+            }
+
+            .btn {
+                padding: 14px 20px;
+                font-size: 14px;
+            }
+
+            .log-content {
+                font-size: 13px;
+            }
+        }
+
+        @media screen and (max-width: 1366px) {
+            .main-container {
+                padding: 16px;
+                gap: 16px;
+            }
+
+            .project-name {
+                font-size: 16px;
+            }
+
+            .status-value {
+                padding: 5px 12px;
+                font-size: 12px;
+            }
+
+            .btn {
+                padding: 11px 14px;
+                font-size: 12px;
+            }
+
+            .operation-section {
+                padding: 20px;
+            }
+
+            .log-content {
+                font-size: 11px;
+            }
+        }
+
+        @media screen and (max-width: 1280px) {
+            .camera-section {
+                flex: 0 0 58%;
+            }
+
+            .operation-section {
+                flex: 0 0 42%;
+            }
+
+            .button-group {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-full {
+                grid-column: 1;
+            }
+        }
+
+        @media screen and (max-width: 1024px) {
+            .status-bar {
+                padding: 0 20px;
+            }
+
+            .camera-section {
+                flex: 0 0 55%;
+            }
+
+            .operation-section {
+                flex: 0 0 45%;
+            }
+
+            .project-name {
+                font-size: 14px;
+            }
+
+            .status-label {
+                display: none;
+            }
+        }
+
+        @media screen and (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+                padding: 12px;
+                gap: 12px;
+            }
+
+            .camera-section,
+            .operation-section {
+                flex: 0 0 auto;
+            }
+
+            .camera-section {
+                height: 40vh;
+            }
+
+            .operation-section {
+                height: auto;
+                min-height: 300px;
+            }
+        }
+        #videoElement,
+        #detectionCanvas {
+           transform: none !important;
+           -webkit-transform: none !important;
+        }
+    
+        #videoElement {
+            transform: none !important;
+            -webkit-transform: none !important;
+        }
+    
+        #detectionCanvas {
+            transform: none !important;
+            -webkit-transform: none !important;
+        }
+    </style>
+    <!-- 成员2的样式（用于画布绘制） -->
+    <link rel="stylesheet" href="js/style.css">
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="status-bar">
+        <div class="project-name">Fatigue Driving Detection System</div>
+        <div class="detection-status">
+            <span id="currentUserDisplay" class="current-user" style="display: none;"></span>
+            <a id="userCenterLink" href="login.html" class="user-center-btn" style="display: none;">
+                <span>&#128100;</span> User Center
+            </a>
+            <span class="status-label">Status:</span>
+            <span id="statusValue" class="status-value idle">Idle</span>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-container">
+        <!-- Camera Section -->
+        <section class="camera-section">
+            <div class="video-container">
+                <video id="videoElement" autoplay playsinline style="transform: none !important;"></video>
+                <canvas id="detectionCanvas" style="transform: none !important;"></canvas>
+                <div id="cameraPlaceholder" class="camera-placeholder">
+                    <span class="icon">&#128249;</span>
+                    <p>Click "Start Detection" to enable camera</p>
+                </div>
+                <div id="detectionStatusText" class="detection-status-text normal">Normal Detection</div>
+                <div id="noFaceMessage">No face detected</div>
+                <div id="statusOverlay" class="status-overlay normal">Normal</div>
+            </div>
+        </section>
+
+        <!-- Operation Section -->
+        <section class="operation-section">
+            <div id="warningPopup" class="warning-popup">
+                &#9888; Fatigue Warning: <span id="warningType">Eye Closed</span>
+            </div>
+
+            <div class="button-group">
+                <button id="btnStart" class="btn btn-start">
+                    <span>&#9654;</span> Start
+                </button>
+                <button id="btnStop" class="btn btn-stop" disabled>
+                    <span>&#9632;</span> Stop
+                </button>
+                <button id="btnRecords" class="btn btn-records">
+                    <span>&#128203;</span> Records
+                </button>
+                <button id="btnExport" class="btn btn-export">
+                    <span>&#128229;</span> Export
+                </button>
+                <button id="btnReset" class="btn btn-reset btn-full">
+                    <span>&#128260;</span> Reset Records
+                </button>
+            </div>
+
+            <div class="log-section">
+                <div class="log-header">Activity Log</div>
+                <div id="logContent" class="log-content"></div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ==================== 成员2需要的隐藏状态元素 ==================== -->
+    <div style="display: none;">
+        <span id="detectionStatus"></span>
+        <span id="fpsDisplay"></span>
+        <span id="faceDetected"></span>
+        <span id="fatigueStatus"></span>
+    </div>
+
+    <script>
+        /**
+         * ========================================
+         * Fatigue Driving Detection System
+         * Frontend Interactive Logic (成员1页面 + 成员2核心)
+         * ========================================
+         */
+
+        // ==================== 首先定义日志函数并暴露 ====================
+        function addLog(message, type = 'info') {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-US', {
+                hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit'
+            });
+            const logContent = document.getElementById('logContent');
+            if (logContent) {
+                const logItem = document.createElement('div');
+                logItem.className = `log-item ${type}`;
+                logItem.innerHTML = `<span class="time">[${timeStr}]</span>${message}`;
+                logContent.appendChild(logItem);
+                logContent.scrollTop = logContent.scrollHeight;
+            }
+            console.log(`[${timeStr}] [${type}] ${message}`);
+        }
+
+        // 立即暴露到全局（确保 camera.js 能第一时间获取到）
+        window.addLog = addLog;
+
+        // ==================== Global Configuration ====================
+        const DETECTION_CONFIG = {
+            frameRate: 30,
+            processInterval: 100,
+            colors: {
+                face: { normal: '#ff8c00', warning: '#dc2626' },
+                eye: { normal: '#22c55e', warning: '#dc2626' },
+                head: { normal: '#eab308', warning: '#dc2626' }
+            },
+            borderWidth: { face: 3, eye: 2, head: 2 },
+            thresholds: {
+                eyeOpenRatio: 0.25,
+                eyeClosedDuration: 300,
+                headTiltAngle: 15,
+                nodInterval: 800
+            },
+            flashInterval: 500,
+            textStyle: {
+                fontSize: 14,
+                fontFamily: 'Arial, sans-serif',
+                color: '#ffffff',
+                strokeColor: '#000000',
+                strokeWidth: 2,
+                backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                padding: '4px 8px',
+                borderRadius: 4
+            }
+        };
+
+        // ==================== Global Variables ====================
+        let isDetecting = false;
+        let flashTimer = null;
+        let flashState = false;
+
+        const PROCESS_INTERVAL = 100;
+        const STORAGE_KEY = 'currentUser';
+        const API_BASE_URL = 'http://localhost:5001';
+
+        // ==================== DOM Elements ====================
+        const videoElement = document.getElementById('videoElement');
+        const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+        const statusValue = document.getElementById('statusValue');
+        const statusOverlay = document.getElementById('statusOverlay');
+        const warningPopup = document.getElementById('warningPopup');
+        const warningType = document.getElementById('warningType');
+        const logContent = document.getElementById('logContent');
+        const btnStart = document.getElementById('btnStart');
+        const btnStop = document.getElementById('btnStop');
+        const btnRecords = document.getElementById('btnRecords');
+        const btnExport = document.getElementById('btnExport');
+        const btnReset = document.getElementById('btnReset');
+        const currentUserDisplay = document.getElementById('currentUserDisplay');
+        const userCenterLink = document.getElementById('userCenterLink');
+        const detectionCanvas = document.getElementById('detectionCanvas');
+        const detectionStatusText = document.getElementById('detectionStatusText');
+        const noFaceMessage = document.getElementById('noFaceMessage');
+
+        // ==================== Initialization ====================
+        function initPage() {
+            checkLoginStatus();
+            startFlashTimer();
+            window.addEventListener('beforeunload', releaseResources);
+
+            btnStart.addEventListener('click', handleStartDetection);
+            btnStop.addEventListener('click', handleStopDetection);
+            btnRecords.addEventListener('click', handleViewRecords);
+            btnExport.addEventListener('click', handleExportRecords);
+            btnReset.addEventListener('click', handleResetRecords);
+
+            addLog('系统已就绪，点击"Start"开始检测', 'info');
+
+            // 暴露函数给全局，供成员2调用
+            window.updateRealTimeStatus = updateRealTimeStatus;
+            window.showWarning = showWarning;
+            window.updateStatus = updateStatus;
+        }
+
+        // ==================== Flash Timer ====================
+        function startFlashTimer() {
+            flashTimer = setInterval(() => {
+                flashState = !flashState;
+            }, DETECTION_CONFIG.flashInterval);
+        }
+
+        function releaseResources() {
+            if (flashTimer) {
+                clearInterval(flashTimer);
+                flashTimer = null;
+            }
+            if (window.cameraModule && window.cameraModule.isDetecting) {
+                window.cameraModule.stopDetection();
+            }
+            if (window.cameraModule && window.cameraModule.isCameraActive) {
+                window.cameraModule.stopCamera();
+            }
+        }
+
+        // ==================== Login Status Check ====================
+        function checkLoginStatus() {
+            const currentUser = localStorage.getItem(STORAGE_KEY);
+
+            if (!currentUser) {
+                btnStart.disabled = true;
+                btnRecords.disabled = true;
+                btnExport.disabled = true;
+                btnReset.disabled = true;
+                userCenterLink.style.display = 'none';
+                currentUserDisplay.style.display = 'none';
+            } else {
+                currentUserDisplay.textContent = currentUser;
+                currentUserDisplay.style.display = 'inline';
+                userCenterLink.href = 'user-center.html';
+                userCenterLink.style.display = 'flex';
+                btnStart.disabled = false;
+                btnRecords.disabled = false;
+                btnExport.disabled = false;
+                btnReset.disabled = false;
+            }
+        }
+
+        // ==================== Status Management ====================
+        function updateStatus(status) {
+            statusValue.classList.remove('idle', 'active', 'warning');
+            switch (status) {
+                case 'idle':
+                    statusValue.textContent = 'Idle';
+                    statusValue.classList.add('idle');
+                    break;
+                case 'active':
+                    statusValue.textContent = 'Active';
+                    statusValue.classList.add('active');
+                    break;
+                case 'warning':
+                    statusValue.textContent = 'Warning';
+                    statusValue.classList.add('warning');
+                    break;
+            }
+        }
+
+        function updateRealTimeStatus(type) {
+            statusOverlay.classList.remove('normal', 'fatigue', 'exception');
+            switch (type) {
+                case 'normal':
+                    statusOverlay.textContent = 'Normal';
+                    statusOverlay.classList.add('normal');
+                    statusOverlay.style.display = 'block';
+                    break;
+                case 'fatigue':
+                    statusOverlay.textContent = 'Fatigue';
+                    statusOverlay.classList.add('fatigue');
+                    statusOverlay.style.display = 'block';
+                    break;
+                case 'exception':
+                    statusOverlay.textContent = 'Exception';
+                    statusOverlay.classList.add('exception');
+                    statusOverlay.style.display = 'block';
+                    break;
+                default:
+                    statusOverlay.style.display = 'none';
+            }
+        }
+
+        function showWarning(type) {
+            let warningText = '';
+            switch (type) {
+                case 'eye': warningText = 'Eye Closed'; break;
+                case 'nod': warningText = 'Head Nod'; break;
+                case 'both': warningText = 'Eye/Head'; break;
+                default: warningText = 'Fatigue';
+            }
+            warningType.textContent = warningText;
+            warningPopup.style.display = 'block';
+            setTimeout(() => { warningPopup.style.display = 'none'; }, 3000);
+        }
+
+        // ==================== Button Event Handlers ====================
+        async function handleStartDetection() {
+            if (window.cameraModule && window.cameraModule.isDetecting) {
+                addLog('检测已在运行中', 'warning');
+                return;
+            }
+
+            addLog('正在启动检测...', 'info');
+
+            if (!window.cameraModule) {
+                addLog('摄像头模块未加载', 'error');
+                return;
+            }
+
+            await window.cameraModule.startCamera();
+
+            if (window.cameraModule.isCameraActive) {
+                window.cameraModule.startDetection();
+
+                btnStart.disabled = true;
+                btnStop.disabled = false;
+
+                updateStatus('active');
+                updateRealTimeStatus('normal');
+
+                addLog('检测已启动 - 状态: 正常', 'success');
+            } else {
+                addLog('摄像头启动失败', 'error');
+                updateRealTimeStatus('exception');
+            }
+        }
+
+        function handleStopDetection() {
+            if (!window.cameraModule || !window.cameraModule.isDetecting) {
+                addLog('检测未运行', 'warning');
+                return;
+            }
+
+            addLog('正在停止检测...', 'info');
+
+            window.cameraModule.stopDetection();
+            window.cameraModule.stopCamera();
+
+            updateStatus('idle');
+            updateRealTimeStatus('exception');
+
+            btnStart.disabled = false;
+            btnStop.disabled = true;
+
+            addLog('检测已停止', 'success');
+        }
+
+        // ==================== 记录管理 API 函数 ====================
+        
+        // 获取记录列表
+        async function callApiGetRecords() {
+            try {
+                addLog('正在获取记录...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/get_records`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'view' })
+                });
+                
+                const data = await response.json();
+                
+                if (data.code === 200 && data.data && data.data.records) {
+                    const records = data.data.records;
+                    addLog(`成功加载 ${records.length} 条记录`, 'success');
+                    
+                    // 显示记录到日志区域
+                    displayRecordsToLog(records);
+                    return records;
+                } else {
+                    addLog('获取记录失败: ' + (data.msg || '未知错误'), 'error');
+                    return [];
+                }
+            } catch (error) {
+                console.error('获取记录失败:', error);
+                addLog('获取记录失败，请确认后端已启动 (端口5001)', 'error');
+                return [];
+            }
+        }
+
+        // 导出记录
+        async function callApiExportRecords() {
+            try {
+                addLog('正在导出记录...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/get_records`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'export' })
+                });
+                
+                const data = await response.json();
+                
+                if (data.code === 200) {
+                    addLog(`导出成功: ${data.data.file_name}`, 'success');
+                    
+                    // 触发文件下载
+                    const downloadUrl = `${API_BASE_URL}/exports/${data.data.file_name}`;
+                    window.open(downloadUrl, '_blank');
+                } else {
+                    addLog(`导出失败: ${data.msg}`, 'error');
+                }
+            } catch (error) {
+                console.error('导出失败:', error);
+                addLog('导出失败，请确认后端已启动', 'error');
+            }
+        }
+
+        // 重置记录
+        async function callApiResetRecords() {
+            try {
+                addLog('正在重置记录...', 'warning');
+                
+                const response = await fetch(`${API_BASE_URL}/get_records`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'reset' })
+                });
+                
+                const data = await response.json();
+                
+                if (data.code === 200) {
+                    addLog('记录已成功重置', 'success');
+                    // 重置后刷新记录显示
+                    await callApiGetRecords();
+                } else {
+                    addLog(`重置失败: ${data.msg}`, 'error');
+                }
+            } catch (error) {
+                console.error('重置失败:', error);
+                addLog('重置失败，请确认后端已启动', 'error');
+            }
+        }
+
+        // 显示记录到日志区域
+        function displayRecordsToLog(records) {
+            if (!records || records.length === 0) {
+                addLog('暂无疲劳记录', 'info');
+                return;
+            }
+            
+            // 添加分隔线
+            addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+            addLog('📋 疲劳记录列表（最近10条）', 'info');
+            
+            // 显示最近10条记录
+            const recentRecords = records.slice(0, 10);
+            
+            recentRecords.forEach(record => {
+                const time = record.timestamp;
+                const type = record.fatigue_type;
+                const duration = record.duration;
+                
+                let icon = '⚠️';
+                if (type === '闭眼') {
+                    icon = '😴';
+                } else if (type === '低头') {
+                    icon = '👇';
+                }
+                
+                addLog(`${icon} [${time}] ${type} - 持续 ${duration}`, 'warning');
+            });
+            
+            if (records.length > 10) {
+                addLog(`... 还有 ${records.length - 10} 条记录`, 'info');
+            }
+            
+            addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+        }
+
+        // ==================== 按钮事件处理 ====================
+        
+        // 查看记录
+        async function handleViewRecords() {
+            addLog('正在获取记录...', 'info');
+            await callApiGetRecords();
+        }
+
+        // 导出记录
+        async function callApiExportRecords() {
+            try {
+                addLog('正在导出记录...', 'info');
+        
+                const response = await fetch(`${API_BASE_URL}/get_records`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'export' })
+                });
+        
+                const data = await response.json();
+        
+                if (data.code === 200) {
+                    addLog(`导出成功: ${data.data.file_name}`, 'success');
+            
+                    // 使用下载接口下载文件
+                    const downloadUrl = `${API_BASE_URL}/download_export/${data.data.file_name}`;
+            window.open(downloadUrl, '_blank');
+                } else {
+                    addLog(`导出失败: ${data.msg}`, 'error');
+                }
+            } catch (error) {
+                console.error('导出失败:', error);
+                addLog('导出失败，请确认后端已启动', 'error');
+            }
+        }
+
+        // 导出记录按钮处理函数
+        async function handleExportRecords() {
+            addLog('正在导出记录...', 'info');
+            await callApiExportRecords();
+        }
+
+
+        // 重置记录
+        async function handleResetRecords() {
+            if (confirm('确定要重置所有疲劳记录吗？此操作不可恢复！')) {
+                await callApiResetRecords();
+            }
+        }
+
+        // ==================== 健康检查 ====================
+        async function checkBackendHealth() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/health`);
+                const data = await response.json();
+                if (data.code === 200) {
+                    console.log('后端服务正常:', data);
+                    return true;
+                }
+            } catch (error) {
+                console.error('后端服务不可用:', error);
+                addLog('后端服务未启动，请运行 python app.py', 'error');
+                return false;
+            }
+            return false;
+        }
+
+        // ==================== Page Load ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            initPage();
+            // 检查后端健康状态
+            setTimeout(() => checkBackendHealth(), 1000);
+        });
+    </script>
+
+    <!-- 成员2的核心模块 -->
+    <script src="js/utils.js"></script>
+    <script src="js/draw.js"></script>
+    <script src="js/camera.js"></script>
+</body>
+
+</html>
