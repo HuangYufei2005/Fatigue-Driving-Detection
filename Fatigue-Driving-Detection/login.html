@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login / Register - Fatigue Driving Detection</title>
+    <style>
+        /* ==================== CSS Reset & Base Styles ==================== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 50%, #a5b4fc 100%);
+        }
+
+        /* ==================== Login Container ==================== */
+        .login-container {
+            width: 100%;
+            max-width: 420px;
+            padding: 20px;
+        }
+
+        .login-box {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(79, 70, 229, 0.2);
+        }
+
+        .login-title {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .login-title h1 {
+            font-size: 22px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        .login-title p {
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        /* ==================== Tab Switch ==================== */
+        .tab-switch {
+            display: flex;
+            margin-bottom: 24px;
+            border-radius: 8px;
+            background: #f3f4f6;
+            padding: 4px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            background: transparent;
+            color: #6b7280;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
+        }
+
+        /* ==================== Form Styles ==================== */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.25s ease;
+            outline: none;
+        }
+
+        .form-group input:focus {
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .form-group input.error {
+            border-color: #ef4444;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+        }
+
+        .form-group input.success {
+            border-color: #10b981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+
+        .form-group input::placeholder {
+            color: #9ca3af;
+        }
+
+        .form-hint {
+            font-size: 11px;
+            color: #9ca3af;
+            margin-top: 4px;
+        }
+
+        /* ==================== Button ==================== */
+        .submit-btn {
+            width: 100%;
+            padding: 14px 20px;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            margin-top: 10px;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.35);
+        }
+
+        .submit-btn:active {
+            transform: translateY(0);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* ==================== Error/Success Message ==================== */
+        .message-box {
+            display: none;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .message-box.error {
+            display: block;
+            background-color: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+            animation: shake 0.4s ease;
+        }
+
+        .message-box.success {
+            display: block;
+            background-color: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #059669;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ==================== Form Panels ==================== */
+        .form-panel {
+            display: none;
+        }
+
+        .form-panel.active {
+            display: block;
+        }
+
+        /* ==================== Password Strength ==================== */
+        .password-strength {
+            margin-top: 8px;
+            display: none;
+        }
+
+        .password-strength.show {
+            display: block;
+        }
+
+        .strength-bar {
+            height: 4px;
+            border-radius: 2px;
+            background: #e5e7eb;
+            overflow: hidden;
+            margin-bottom: 6px;
+        }
+
+        .strength-bar-fill {
+            height: 100%;
+            width: 0;
+            transition: all 0.3s ease;
+            border-radius: 2px;
+        }
+
+        .strength-bar-fill.weak {
+            width: 33%;
+            background: #ef4444;
+        }
+
+        .strength-bar-fill.medium {
+            width: 66%;
+            background: #f59e0b;
+        }
+
+        .strength-bar-fill.strong {
+            width: 100%;
+            background: #10b981;
+        }
+
+        .strength-text {
+            font-size: 11px;
+            color: #6b7280;
+        }
+
+        .strength-text.weak { color: #ef4444; }
+        .strength-text.medium { color: #f59e0b; }
+        .strength-text.strong { color: #10b981; }
+
+        /* ==================== Responsive ==================== */
+        @media screen and (max-width: 480px) {
+            .login-box {
+                padding: 30px 24px;
+            }
+
+            .login-title h1 {
+                font-size: 18px;
+            }
+        }
+
+        @media screen and (max-width: 1366px) {
+            .login-box {
+                padding: 32px 28px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-box">
+            <div class="login-title">
+                <h1>Fatigue Driving Detection</h1>
+                <p>Login or Register to access the system</p>
+            </div>
+
+            <!-- Tab Switch -->
+            <div class="tab-switch">
+                <button type="button" class="tab-btn active" data-tab="login">Login</button>
+                <button type="button" class="tab-btn" data-tab="register">Register</button>
+            </div>
+
+            <!-- Message Box -->
+            <div id="messageBox" class="message-box"></div>
+
+            <!-- Login Form -->
+            <div id="loginPanel" class="form-panel active">
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="loginUsername">Username</label>
+                        <input 
+                            type="text" 
+                            id="loginUsername" 
+                            placeholder="Enter your username" 
+                            autocomplete="username"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="loginPassword">Password</label>
+                        <input 
+                            type="password" 
+                            id="loginPassword" 
+                            placeholder="Enter your password" 
+                            autocomplete="current-password"
+                        >
+                    </div>
+
+                    <button type="submit" class="submit-btn">Login</button>
+                </form>
+            </div>
+
+            <!-- Register Form -->
+            <div id="registerPanel" class="form-panel">
+                <form id="registerForm">
+                    <div class="form-group">
+                        <label for="regUsername">Username</label>
+                        <input 
+                            type="text" 
+                            id="regUsername" 
+                            placeholder="Enter username (6-16 characters)" 
+                            autocomplete="username"
+                        >
+                        <div class="form-hint">Only letters, numbers, underscores (_) and hyphens (-) allowed</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="regPassword">Password</label>
+                        <input 
+                            type="password" 
+                            id="regPassword" 
+                            placeholder="Enter password (6-12 characters)" 
+                            autocomplete="new-password"
+                        >
+                        <div class="form-hint">Must contain uppercase, lowercase, and numbers</div>
+                        <div class="password-strength" id="passwordStrength">
+                            <div class="strength-bar">
+                                <div class="strength-bar-fill" id="strengthBar"></div>
+                            </div>
+                            <span class="strength-text" id="strengthText"></span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="regConfirmPassword">Confirm Password</label>
+                        <input 
+                            type="password" 
+                            id="regConfirmPassword" 
+                            placeholder="Re-enter your password" 
+                            autocomplete="new-password"
+                        >
+                    </div>
+
+                    <button type="submit" class="submit-btn">Register</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * ========================================
+         * Login/Register System
+         * Developer: Member 1
+         * Date: 2026-03-02
+         * ========================================
+         */
+
+        // ==================== Constants ====================
+        const USERS_KEY = 'systemUsers';       // Key for storing all users
+        const CURRENT_USER_KEY = 'currentUser'; // Key for current logged in user
+        
+        // Weak passwords list (10 common passwords)
+        const WEAK_PASSWORDS = [
+            '12345678',
+            'password',
+            'qwerty',
+            '123456789',
+            '12345',
+            '123456',
+            'abc123',
+            'password1',
+            'admin123',
+            'letmein'
+        ];
+
+        // ==================== DOM Elements ====================
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const loginPanel = document.getElementById('loginPanel');
+        const registerPanel = document.getElementById('registerPanel');
+        const messageBox = document.getElementById('messageBox');
+        
+        // Login form elements
+        const loginForm = document.getElementById('loginForm');
+        const loginUsername = document.getElementById('loginUsername');
+        const loginPassword = document.getElementById('loginPassword');
+        
+        // Register form elements
+        const registerForm = document.getElementById('registerForm');
+        const regUsername = document.getElementById('regUsername');
+        const regPassword = document.getElementById('regPassword');
+        const regConfirmPassword = document.getElementById('regConfirmPassword');
+        const passwordStrength = document.getElementById('passwordStrength');
+        const strengthBar = document.getElementById('strengthBar');
+        const strengthText = document.getElementById('strengthText');
+
+        // ==================== Initialization ====================
+        /**
+         * Check if already logged in
+         * If already logged in, redirect to index.html
+         */
+        function checkExistingLogin() {
+            const currentUser = localStorage.getItem(CURRENT_USER_KEY);
+            if (currentUser) {
+                window.location.href = 'index.html';
+            }
+        }
+        checkExistingLogin();
+
+        // ==================== Tab Switching ====================
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tab = btn.dataset.tab;
+                
+                // Update tab buttons
+                tabBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                // Update panels
+                if (tab === 'login') {
+                    loginPanel.classList.add('active');
+                    registerPanel.classList.remove('active');
+                } else {
+                    loginPanel.classList.remove('active');
+                    registerPanel.classList.add('active');
+                }
+                
+                // Clear messages
+                hideMessage();
+            });
+        });
+
+        // ==================== User Data Management ====================
+        /**
+         * Get all users from localStorage
+         * @returns {Object} Users object
+         */
+        function getUsers() {
+            const usersJson = localStorage.getItem(USERS_KEY);
+            return usersJson ? JSON.parse(usersJson) : {};
+        }
+
+        /**
+         * Save users to localStorage
+         * @param {Object} users - Users object
+         */
+        function saveUsers(users) {
+            localStorage.setItem(USERS_KEY, JSON.stringify(users));
+        }
+
+        /**
+         * Add a new user
+         * @param {string} username - Username
+         * @param {string} password - Password (stored as plain text for demo)
+         */
+        function addUser(username, password) {
+            const users = getUsers();
+            users[username] = {
+                password: password,
+                createdAt: new Date().toISOString()
+            };
+            saveUsers(users);
+        }
+
+        /**
+         * Check if username exists
+         * @param {string} username - Username to check
+         * @returns {boolean}
+         */
+        function userExists(username) {
+            const users = getUsers();
+            return users.hasOwnProperty(username);
+        }
+
+        /**
+         * Validate user credentials
+         * @param {string} username - Username
+         * @param {string} password - Password
+         * @returns {boolean}
+         */
+        function validateUser(username, password) {
+            const users = getUsers();
+            return users[username] && users[username].password === password;
+        }
+
+        // ==================== Validation Functions ====================
+        
+        /**
+         * Validate username
+         * @param {string} username - Username to validate
+         * @returns {Object} - { valid: boolean, message: string }
+         */
+        function validateUsername(username) {
+            // Non-empty check
+            if (!username || username.trim() === '') {
+                return { valid: false, message: 'Username is required' };
+            }
+            
+            // Length check (6-16 characters)
+            if (username.length < 6 || username.length > 16) {
+                return { valid: false, message: 'Username must be 6-16 characters' };
+            }
+            
+            // Character type check (only letters, numbers, underscore, hyphen)
+            const usernamePattern = /^[a-zA-Z0-9_-]+$/;
+            if (!usernamePattern.test(username)) {
+                return { valid: false, message: 'Username can only contain letters, numbers, underscores and hyphens' };
+            }
+            
+            // Uniqueness check
+            if (userExists(username)) {
+                return { valid: false, message: 'Username already exists' };
+            }
+            
+            return { valid: true, message: '' };
+        }
+
+        /**
+         * Validate password
+         * @param {string} password - Password to validate
+         * @param {string} username - Associated username
+         * @returns {Object} - { valid: boolean, message: string }
+         */
+        function validatePassword(password, username) {
+            // Non-empty check
+            if (!password || password.trim() === '') {
+                return { valid: false, message: 'Password is required' };
+            }
+            
+            // Length check (6-12 characters)
+            if (password.length < 6 || password.length > 12) {
+                return { valid: false, message: 'Password must be 6-12 characters' };
+            }
+            
+            // Complexity check (must contain uppercase, lowercase, and numbers)
+            const hasUppercase = /[A-Z]/.test(password);
+            const hasLowercase = /[a-z]/.test(password);
+            const hasNumber = /[0-9]/.test(password);
+            
+            if (!hasUppercase || !hasLowercase || !hasNumber) {
+                return { valid: false, message: 'Password must contain uppercase, lowercase, and numbers' };
+            }
+            
+            // Weak password check
+            const lowerPassword = password.toLowerCase();
+            if (WEAK_PASSWORDS.includes(lowerPassword)) {
+                return { valid: false, message: 'Password is too weak' };
+            }
+            
+            // Username association check (password cannot contain username)
+            if (username && username.length > 0) {
+                if (lowerPassword.includes(username.toLowerCase())) {
+                    return { valid: false, message: 'Password should not contain username' };
+                }
+            }
+            
+            return { valid: true, message: '' };
+        }
+
+        /**
+         * Validate confirm password
+         * @param {string} confirmPassword - Confirm password
+         * @param {string} password - Original password
+         * @returns {Object} - { valid: boolean, message: string }
+         */
+        function validateConfirmPassword(confirmPassword, password) {
+            // Non-empty check
+            if (!confirmPassword || confirmPassword.trim() === '') {
+                return { valid: false, message: 'Please confirm your password' };
+            }
+            
+            // Match check
+            if (confirmPassword !== password) {
+                return { valid: false, message: 'Passwords do not match' };
+            }
+            
+            return { valid: true, message: '' };
+        }
+
+        /**
+         * Calculate password strength
+         * @param {string} password - Password to check
+         * @returns {string} - 'weak', 'medium', or 'strong'
+         */
+        function calculatePasswordStrength(password) {
+            if (!password) return '';
+            
+            let score = 0;
+            
+            // Length score
+            if (password.length >= 6) score++;
+            if (password.length >= 8) score++;
+            if (password.length >= 10) score++;
+            
+            // Character variety
+            if (/[a-z]/.test(password)) score++;
+            if (/[A-Z]/.test(password)) score++;
+            if (/[0-9]/.test(password)) score++;
+            if (/[^a-zA-Z0-9]/.test(password)) score++;
+            
+            if (score <= 2) return 'weak';
+            if (score <= 4) return 'medium';
+            return 'strong';
+        }
+
+        // ==================== Message Display ====================
+        /**
+         * Show message
+         * @param {string} message - Message to display
+         * @param {string} type - 'error' or 'success'
+         */
+        function showMessage(message, type) {
+            messageBox.textContent = message;
+            messageBox.className = 'message-box ' + type;
+        }
+
+        /**
+         * Hide message
+         */
+        function hideMessage() {
+            messageBox.className = 'message-box';
+            messageBox.textContent = '';
+        }
+
+        /**
+         * Show inline error for specific input
+         * @param {HTMLElement} input - Input element
+         * @param {string} message - Error message
+         */
+        function showInputError(input, message) {
+            input.classList.add('error');
+            input.classList.remove('success');
+            
+            // Remove existing hint
+            const existingHint = input.parentNode.querySelector('.input-error');
+            if (existingHint) {
+                existingHint.remove();
+            }
+            
+            // Add error message
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'input-error form-hint';
+            errorDiv.style.color = '#ef4444';
+            errorDiv.textContent = message;
+            input.parentNode.appendChild(errorDiv);
+        }
+
+        /**
+         * Clear input error/success state
+         * @param {HTMLElement} input - Input element
+         */
+        function clearInputState(input) {
+            input.classList.remove('error', 'success');
+            const existingHint = input.parentNode.querySelector('.input-error');
+            if (existingHint) {
+                existingHint.remove();
+            }
+        }
+
+        // ==================== Login Handler ====================
+        loginForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            hideMessage();
+
+            const username = loginUsername.value.trim();
+            const password = loginPassword.value;
+
+            // Validate username
+            if (!username) {
+                showMessage('Username is required', 'error');
+                loginUsername.focus();
+                return;
+            }
+
+            // Validate password
+            if (!password) {
+                showMessage('Password is required', 'error');
+                loginPassword.focus();
+                return;
+            }
+
+            // Check if user exists
+            if (!userExists(username)) {
+                showMessage('Username does not exist. Please register first.', 'error');
+                loginUsername.focus();
+                return;
+            }
+
+            // Validate credentials
+            if (!validateUser(username, password)) {
+                showMessage('Incorrect password', 'error');
+                loginPassword.focus();
+                return;
+            }
+
+            // Login successful
+            localStorage.setItem(CURRENT_USER_KEY, username);
+            window.location.href = 'index.html';
+        });
+
+        // ==================== Register Handler ====================
+        
+        // Real-time username validation
+        regUsername.addEventListener('blur', function() {
+            const username = this.value.trim();
+            clearInputState(this);
+            
+            if (username) {
+                const result = validateUsername(username);
+                if (!result.valid) {
+                    showInputError(this, result.message);
+                } else {
+                    this.classList.add('success');
+                }
+            }
+        });
+
+        // Real-time password validation and strength display
+        regPassword.addEventListener('input', function() {
+            const password = this.value;
+            const username = regUsername.value.trim();
+            clearInputState(this);
+            
+            if (password) {
+                // Show strength indicator
+                passwordStrength.classList.add('show');
+                const strength = calculatePasswordStrength(password);
+                
+                strengthBar.className = 'strength-bar-fill ' + strength;
+                strengthText.className = 'strength-text ' + strength;
+                
+                if (strength === 'weak') {
+                    strengthText.textContent = 'Weak password';
+                } else if (strength === 'medium') {
+                    strengthText.textContent = 'Medium strength';
+                } else {
+                    strengthText.textContent = 'Strong password';
+                }
+            } else {
+                passwordStrength.classList.remove('show');
+            }
+        });
+
+        // Real-time confirm password validation
+        regConfirmPassword.addEventListener('input', function() {
+            const confirmPassword = this.value;
+            const password = regPassword.value;
+            clearInputState(this);
+            
+            if (confirmPassword && password) {
+                if (confirmPassword !== password) {
+                    showInputError(this, 'Passwords do not match');
+                } else {
+                    this.classList.add('success');
+                }
+            }
+        });
+
+        // Register form submission
+        registerForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            hideMessage();
+
+            const username = regUsername.value.trim();
+            const password = regPassword.value;
+            const confirmPassword = regConfirmPassword.value;
+
+            // Clear previous input states
+            clearInputState(regUsername);
+            clearInputState(regPassword);
+            clearInputState(regConfirmPassword);
+
+            // Validate username
+            const usernameResult = validateUsername(username);
+            if (!usernameResult.valid) {
+                showInputError(regUsername, usernameResult.message);
+                regUsername.focus();
+                return;
+            }
+
+            // Validate password
+            const passwordResult = validatePassword(password, username);
+            if (!passwordResult.valid) {
+                showInputError(regPassword, passwordResult.message);
+                regPassword.focus();
+                return;
+            }
+
+            // Validate confirm password
+            const confirmResult = validateConfirmPassword(confirmPassword, password);
+            if (!confirmResult.valid) {
+                showInputError(regConfirmPassword, confirmResult.message);
+                regConfirmPassword.focus();
+                return;
+            }
+
+            // Additional check: username cannot contain password
+            if (username.toLowerCase().includes(password.toLowerCase())) {
+                showInputError(regPassword, 'Password should not contain username');
+                regPassword.focus();
+                return;
+            }
+
+            // Register user
+            addUser(username, password);
+
+            // Show success message and switch to login
+            showMessage('Registration successful! Please login.', 'success');
+
+            // Clear form
+            registerForm.reset();
+            passwordStrength.classList.remove('show');
+
+            // Switch to login tab after a short delay
+            setTimeout(() => {
+                tabBtns[0].click();
+                loginUsername.value = username;
+                loginPassword.focus();
+            }, 1500);
+        });
+
+        // Clear input errors on input
+        [loginUsername, loginPassword, regUsername, regPassword, regConfirmPassword].forEach(input => {
+            input.addEventListener('input', function() {
+                hideMessage();
+                clearInputState(this);
+            });
+        });
+    </script>
+</body>
+</html>
