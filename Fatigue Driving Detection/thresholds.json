@@ -1,7 +1,0 @@
-{
-  "eyelid_threshold": 0.28,
-  "eye_close_duration": 0.25,
-  "head_angle_threshold": 12,
-  "nod_interval_threshold": 0.7,
-  "warning_cooldown": 3
-}
