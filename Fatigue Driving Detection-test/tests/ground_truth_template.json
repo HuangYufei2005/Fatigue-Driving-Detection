@@ -1,0 +1,32 @@
+{
+  "description": "示例标注模板：按时间段标注真值，供 replay/realworld 精度评估使用。",
+  "segments": [
+    {
+      "start_sec": 0.0,
+      "end_sec": 5.0,
+      "face": true,
+      "eye_closed": false,
+      "nod": false,
+      "yawn": false,
+      "fatigue": false
+    },
+    {
+      "start_sec": 5.0,
+      "end_sec": 8.0,
+      "face": true,
+      "eye_closed": true,
+      "nod": false,
+      "yawn": false,
+      "fatigue": true
+    },
+    {
+      "start_sec": 8.0,
+      "end_sec": 10.0,
+      "face": true,
+      "eye_closed": false,
+      "nod": true,
+      "yawn": false,
+      "fatigue": true
+    }
+  ]
+}
